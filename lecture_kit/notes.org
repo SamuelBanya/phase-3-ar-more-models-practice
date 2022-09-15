@@ -1,0 +1,1269 @@
+* Steps
+** Initial Steps
+<2022-09-14 Wed 18:06>: These are the steps I took to do this lab:
+#+begin_src ruby
+bundle exec rake db:create_migration NAME=delete_category_id
+#+end_src
+
+Steps:
+** Make Plant-Category relationship a 'many-to-many' relationship
+1. Create a new migration: delete the category_id from Plant + migrate
+- Code In 'lecture_kit/db/migrate/20220914230323_delete_category_id.rb'
+#+begin_src ruby
+class DeleteCategoryId < ActiveRecord::Migration[5.2]
+  def change
+    # Related Docs page:
+    # https://apidock.com/rails/v5.2.3/ActiveRecord/ConnectionAdapters/SchemaStatements/remove_column
+    # remove_column(table_name, column_name, type = nil, options = {}) public
+    remove_column :plants, :category_id, :integer
+  end
+end
+#+end_src
+- Related action:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-models-pract
+ice/lecture_kit $ bundle exec rake db:migrate
+== 20220914230323 DeleteCategoryId: migrating =================================
+-- remove_column(:plants, :category_id)
+   -> 0.0051s
+== 20220914230323 DeleteCategoryId: migrated (0.0052s) ========================
+#+end_src
+
+2. Create a new migration: introduce a new table + migrate:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-models-pract
+ice/lecture_kit $ bundle exec rake db:create_migration NAME=create_plant_categoriesdb/migrate/20220914231402_create_plant_categories.rb
+#+end_src
+- Modified migration in 'lecture_kit/db/migrate/20220914231402_create_plant_categories.rb'
+#+begin_src ruby
+class CreatePlantCategories < ActiveRecord::Migration[5.2]
+  def change
+    create_table :plant_categories do |t|
+      t.integer :category_id
+      t.integer :plant_id
+    end
+  end
+end
+#+end_src
+- Related migration command:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-models-pract
+ice/lecture_kit $ bundle exec rake db:migrate
+== 20220914231402 CreatePlantCategories: migrating ============================
+-- create_table(:plant_categories)
+   -> 0.0008s
+== 20220914231402 CreatePlantCategories: migrated (0.0009s) ===================
+#+end_src
+
+3. Create a corresponding model:
+- Related code in 'lecture_kit/app/models/plant_category.rb' model:
+#+begin_src ruby
+class PlantCategory < ActiveRecord::Base
+    def initialize
+        belongs_to :category
+        belongs_to :plant
+    end
+end
+#+end_src
+
+4. Add associations
+- Modified 'lecture_kit/app/models/plant.rb' to reflect the new relationships:
+#+begin_src ruby
+class Plant < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :plant_parents, through: :plant_parenthoods
+    has_many :plant_categories
+    has_many :categories, through: :plant_categories
+end
+
+#+end_src
+- Modified 'lecture_kit/app/models/category.rb' to reflect the new relationships:
+#+begin_src ruby
+class Category < ActiveRecord::Base
+    has_many :plant_categories
+    has_many :plants, through: :plant_categories
+end
+#+end_src
+- Changed 'lecture_kit/ap/modes/plant_category.rb' to reflect the new relationships:
+#+begin_src ruby
+class PlantCategory < ActiveRecord::Base
+    belongs_to :category
+    belongs_to :plant
+end
+#+end_src
+- Changed the 'db/migrate/seeds.rb' file to include the following changes:
+#+begin_src ruby
+Plant.destroy_all
+Plant.reset_pk_sequence
+PlantParent.destroy_all
+PlantParent.reset_pk_sequence
+PlantParenthood.destroy_all
+PlantParenthood.reset_pk_sequence
+PlantCategory.destroy_all
+PlantCategory.reset_pk_sequence
+
+outdoor = Category.create(name: "outdoor")
+indoor = Category.create(name: "indoor")
+leafy = Category.create(name: "leafy")
+succulent = Category.create(name: "succulent")
+#+end_src
+- I then removed the 'category_id:' sections in the 'db/migrate/seeds.rb' file:
+#+begin_src ruby
+basil = Plant.create(species: "basil the herb", bought: "20200610", color: "green", fussy: true)
+corn_tree = Plant.create(species: "Corn Tree", bought: "20170203", color: "green", fussy: false)
+prayer_plant = Plant.create(species: "Prayer plant", bought: "20190815", color: "purple", fussy: false)
+cactus_1 = Plant.create(species: "Cactus", bought: "20200110", color: "ugly green", fussy: false)
+elephant_bush = Plant.create(species: "Elephant bush", bought: "20180908", color: "green", fussy: true)
+photos = Plant.create(species: "Photos", bought: "20170910", color: "green", fussy: false)
+dragon_tree = Plant.create(species: "Dragon tree", bought: "20170910", color: "green", fussy: false)
+snake_plant = Plant.create(species: "Snake plant", bought: "20170910", color: "dark green", fussy: false)
+polka_dot_plant = Plant.create(species: "polka dot plant", bought: "20170915", color: "pink and green", fussy: false)
+cactus_2 = Plant.create(species: "Cactus", bought: "20200517", color: "green", fussy: false)
+#+end_src
+- I then used 'PlantCategory.create()' in multiple sections throughout the 'db/migrate/seeds.rb' file, NOTE: I had to comment the 'Person' sections out since I think the lecturer girl used some existing code that 'just worked' for her, but totally doesn't work at all without modifications involved in later steps:
+#+begin_src ruby
+Plant.destroy_all
+Plant.reset_pk_sequence
+Category.destroy_all
+Category.reset_pk_sequence
+# Person.destroy_all
+# Person.reset_pk_sequence
+PlantParenthood.destroy_all
+PlantParenthood.reset_pk_sequence
+PlantCategory.destroy_all
+PlantCategory.reset_pk_sequence
+
+outdoor = Category.create(name: "outdoor")
+indoor = Category.create(name: "indoor")
+leafy = Category.create(name: "leafy")
+succulent = Category.create(name: "succulent")
+
+basil = Plant.create(species: "basil the herb", bought: "20200610", color: "green", fussy: true)
+PlantCategory.create(plant_id: basil.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: basil.id, category_id: indoor.id)
+PlantCategory.create(plant_id: basil.id, category_id: leafy.id)
+corn_tree = Plant.create(species: "Corn Tree", bought: "20170203", color: "green", fussy: false)
+PlantCategory.create(plant_id: corn_tree.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: corn_tree.id, category_id: indoor.id)
+PlantCategory.create(plant_id: corn_tree.id, category_id: leafy.id)
+prayer_plant = Plant.create(species: "Prayer plant", bought: "20190815", color: "purple", fussy: false)
+cactus_1 = Plant.create(species: "Cactus", bought: "20200110", color: "ugly green", fussy: false)
+elephant_bush = Plant.create(species: "Elephant bush", bought: "20180908", color: "green", fussy: true)
+photos = Plant.create(species: "Photos", bought: "20170910", color: "green", fussy: false)
+dragon_tree = Plant.create(species: "Dragon tree", bought: "20170910", color: "green", fussy: false)
+snake_plant = Plant.create(species: "Snake plant", bought: "20170910", color: "dark green", fussy: false)
+polka_dot_plant = Plant.create(species: "polka dot plant", bought: "20170915", color: "pink and green", fussy: false)
+cactus_2 = Plant.create(species: "Cactus", bought: "20200517", color: "green", fussy: false)
+PlantCategory.create(plant_id: cactus_2.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: cactus_2.id, category_id: indoor.id)
+PlantCategory.create(plant_id: cactus_2.id, category_id: succulent.id)
+
+# binding.pry
+
+# joel = PlantParent.create(name: "Joel", responsible: false, age: 10_000)
+# sylwia = PlantParent.create(name: "Sylwia", responsible: true, age: 31)
+
+# PlantParenthood.create(plant_id: prayer_plant.id, person_id: joel.id, affection:0)
+# PlantParenthood.create(plant_id: basil.id, plant_parent_id: joel.id, affection:1)
+# PlantParenthood.create(plant_id: basil.id, plant_parent_id: sylwia.id, affection:10)
+# PlantParenthood.create(plant_id: corn_tree.id, plant_parent_id: sylwia.id, affection:10)
+
+puts "🌱 🌱 🌱  SEEDED 🌱 🌱 🌱 🌱 "
+#+end_src
+- I then seeded the project with seed data:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-models-pract
+ice/lecture_kit $ bundle exec rake db:seed
+🌱 🌱 🌱  SEEDED 🌱 🌱 🌱 🌱
+#+end_src
+- I then used 'bundle exec rake console' to check the seeded data accordingly:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-models-pract
+ice/lecture_kit $ bundle exec rake console
+[1] pry(main)> PlantCategory.all()
+D, [2022-09-14T19:11:29.530016 #20034] DEBUG -- :   PlantCategory Load (1.1ms)  SELECT "plant_categories".* FROM "plant_categories"
+=> [#<PlantCategory:0x00007f96b44367a8 id: 1, category_id: 1, plant_id: 1>,
+ #<PlantCategory:0x00007f96b442e8c8 id: 2, category_id: 2, plant_id: 1>,
+ #<PlantCategory:0x00007f96b442e418 id: 3, category_id: 3, plant_id: 1>,
+ #<PlantCategory:0x00007f96b442d400 id: 4, category_id: 1, plant_id: 2>,
+ #<PlantCategory:0x00007f96b442caa0 id: 5, category_id: 2, plant_id: 2>,
+ #<PlantCategory:0x00007f96b442c618 id: 6, category_id: 3, plant_id: 2>,
+ #<PlantCategory:0x00007f96b442c460 id: 7, category_id: 1, plant_id: 10>,
+ #<PlantCategory:0x00007f96b442c2a8 id: 8, category_id: 2, plant_id: 10>,
+ #<PlantCategory:0x00007f96b4427e88 id: 9, category_id: 4, plant_id: 10>]
+...skipping...
+ #<PlantCategory:0x00007f96b442e8c8 id: 2, category_id: 2, plant_id: 1>,
+ #<PlantCategory:0x00007f96b442e418 id: 3, category_id: 3, plant_id: 1>,
+ #<PlantCategory:0x00007f96b442d400 id: 4, category_id: 1, plant_id: 2>,
+ #<PlantCategory:0x00007f96b442caa0 id: 5, category_id: 2, plant_id: 2>,
+ #<PlantCategory:0x00007f96b442c618 id: 6, category_id: 3, plant_id: 2>,
+ #<PlantCategory:0x00007f96b442c460 id: 7, category_id: 1, plant_id: 10>,
+ #<PlantCategory:0x00007f96b442c2a8 id: 8, category_id: 2, plant_id: 10>,
+ #<PlantCategory:0x00007f96b4427e88 id: 9, category_id: 4, plant_id: 10>]
+#+end_src
+- I then checked the count of the 'PlantCategory' rows with this command inside 'bundle exec rake console':
+#+begin_src bash
+[2] pry(main)> PlantCategory.all.count()
+D, [2022-09-14T19:12:35.825949 #20034] DEBUG -- :    (0.2ms)  SELECT COUNT(*) FROM "plant_categories"
+=> 9
+#+end_src
+- I then assigned the first instance of the 'Plant' table to the 'basil' variable:
+#+begin_src bash
+[3] pry(main)> basil = Plant.first()
+D, [2022-09-14T19:13:29.517429 #20034] DEBUG -- :   Plant Load (0.1ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Plant:0x00007f96b45ffb48
+ id: 1,
+ species: "basil the herb",
+ color: "green",
+ bought: 2020-06-10 00:00:00 UTC,
+ fussy: true>
+#+end_src
+- I then checked the categories with 'Plant.categories' with this command using the 'basil' instance of the 'Plant' table:
+#+begin_src bash
+[5] pry(main)> basil.categories
+D, [2022-09-14T19:14:50.205036 #20034] DEBUG -- :   Category Load (0.1ms)  SELECT "categories".* FROM "categories" INNER JOIN "plant_categories" ON "categories"."id" = "plant_categories"."category_id" WHERE "plant_categories"."plant_id" = ?  [["plant_id", 1]]
+=> [#<Category:0x00007f96b01df300 id: 1, name: "outdoor">,
+ #<Category:0x00007f96b01df198 id: 2, name: "indoor">,
+ #<Category:0x00007f96b01df058 id: 3, name: "leafy">]
+#+end_src
+- I then checked to make sure that the relationship was correct by checking the 'Category' table's first instance's '.plants' array:
+#+begin_src bash
+[6] pry(main)> Category.first.plants
+D, [2022-09-14T19:16:00.394614 #20034] DEBUG -- :   Category Load (0.3ms)  SELECT  "categories".* FROM "categories" ORDER BY "categories"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T19:16:00.400082 #20034] DEBUG -- :   Plant Load (0.3ms)  SELECT "plants".* FROM "plants" INNER JOIN "plant_categories" ON "plants"."id" = "plant_categories"."plant_id" WHERE "plant_categories"."category_id" = ?  [["category_id", 1]]
+=> [#<Plant:0x00007f96b38ff240
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>,
+ #<Plant:0x00007f96b38fe278
+  id: 2,
+  species: "Corn Tree",
+  color: "green",
+  bought: 2017-02-03 00:00:00 UTC,
+  fussy: false>,
+ #<Plant:0x00007f96b38fdeb8
+  id: 10,
+  species: "Cactus",
+  color: "green",
+  bought: 2020-05-17 00:00:00 UTC,
+  fussy: false>]
+#+end_src
+
+** Change the name of the PlantParent to Person
+1. Create a new migration: change the name of the table + migrate
+
+I then ran the 'bundle exec rake db:create_migration NAME=change_plant_parents_to_people' command:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-models-pract
+ice/lecture_kit $ bundle exec rake db:create_migration NAME=change_plant_parents_to_people
+db/migrate/20220915003357_change_plant_parents_to_people.rb
+#+end_src
+
+Contents of 'lecture_kit/db/migrate/20220915003357_change_plant_parents_to_people.rb' migration file:
+#+begin_src ruby
+class ChangePlantParentsToPeople < ActiveRecord::Migration[5.2]
+  def change
+    # Related Ruby Docs page on 'rename_table' method:
+    # https://api.rubyonrails.org/v7.0.4/classes/ActiveRecord/ConnectionAdapters/SchemaStatements.html#method-i-rename_table
+    rename_table :plant_parents, :people
+  end
+end
+#+end_src
+
+I then ran the related 'bundle exec rake db:migrate' file:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-models-pract
+ice/lecture_kit $ bundle exec rake db:migrate
+== 20220915003357 ChangePlantParentsToPeople: migrating =======================
+-- rename_table(:plant_parents, :people)
+   -> 0.0011s
+== 20220915003357 ChangePlantParentsToPeople: migrated (0.0012s) ==============
+#+end_src
+
+2. Change the name of the model file and model name
+- I changed the name of 'app/models/plant_parent.rb' to 'app/models/person.rb'
+- I then changed the contents of 'app/models/person.rb' to the following:
+#+begin_src ruby
+class Person < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :plants, through: :plant_parenthoods
+end
+#+end_src
+
+3. In all the model files, replace plant_parent and plant_parents with person and people
+- I changed the contents of 'app/models/plant_parenthood.rb' to the following:
+#+begin_src ruby
+class PlantParenthood < ActiveRecord::Base
+     belongs_to :person
+     belongs_to :plant
+    # def plant_parents
+    #     # before ActiveRecord
+    #     PlantParent.all.select{|plant_parent| plant_parent == self.plant_parents}
+    #     # AR:
+    #     id_num = self.plant_parent_id
+    #     PlantParent.find(id_num)
+    # end
+end
+#+end_src
+- I changed the contents of 'app/models/plant.rb' to the following:
+#+begin_src ruby
+class Plant < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :people, through: :plant_parenthoods
+    has_many :plant_categories
+    has_many :categories, through: :plant_categories
+end
+#+end_src
+
+4. In seeds, change the model name everywhere
+- I then uncommented the previous sections in the 'lecture_kit/db/seeds.rb' file that utilized 'People' since whoever decided to upload it to the GitHub repo decided to upload the FINAL copy of the lesson, not different stages per video, hence why I was mega confused before so it wasn't my fault but just terrible thought process / workflow issues on the instructor's part:
+#+begin_src ruby
+Plant.destroy_all
+Plant.reset_pk_sequence
+Category.destroy_all
+Category.reset_pk_sequence
+Person.destroy_all
+Person.reset_pk_sequence
+PlantParenthood.destroy_all
+PlantParenthood.reset_pk_sequence
+PlantCategory.destroy_all
+PlantCategory.reset_pk_sequence
+
+outdoor = Category.create(name: "outdoor")
+indoor = Category.create(name: "indoor")
+leafy = Category.create(name: "leafy")
+succulent = Category.create(name: "succulent")
+
+basil = Plant.create(species: "basil the herb", bought: "20200610", color: "green", fussy: true)
+PlantCategory.create(plant_id: basil.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: basil.id, category_id: indoor.id)
+PlantCategory.create(plant_id: basil.id, category_id: leafy.id)
+corn_tree = Plant.create(species: "Corn Tree", bought: "20170203", color: "green", fussy: false)
+PlantCategory.create(plant_id: corn_tree.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: corn_tree.id, category_id: indoor.id)
+PlantCategory.create(plant_id: corn_tree.id, category_id: leafy.id)
+prayer_plant = Plant.create(species: "Prayer plant", bought: "20190815", color: "purple", fussy: false)
+cactus_1 = Plant.create(species: "Cactus", bought: "20200110", color: "ugly green", fussy: false)
+elephant_bush = Plant.create(species: "Elephant bush", bought: "20180908", color: "green", fussy: true)
+photos = Plant.create(species: "Photos", bought: "20170910", color: "green", fussy: false)
+dragon_tree = Plant.create(species: "Dragon tree", bought: "20170910", color: "green", fussy: false)
+snake_plant = Plant.create(species: "Snake plant", bought: "20170910", color: "dark green", fussy: false)
+polka_dot_plant = Plant.create(species: "polka dot plant", bought: "20170915", color: "pink and green", fussy: false)
+cactus_2 = Plant.create(species: "Cactus", bought: "20200517", color: "green", fussy: false)
+PlantCategory.create(plant_id: cactus_2.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: cactus_2.id, category_id: indoor.id)
+PlantCategory.create(plant_id: cactus_2.id, category_id: succulent.id)
+
+# binding.pry
+
+joel = Person.create(name: "Joel", responsible: false, age: 10_000)
+sylwia = Person.create(name: "Sylwia", responsible: true, age: 31)
+
+PlantParenthood.create(plant_id: prayer_plant.id, person_id: joel.id, affection:0)
+PlantParenthood.create(plant_id: basil.id, plant_parent_id: joel.id, affection:1)
+PlantParenthood.create(plant_id: basil.id, plant_parent_id: sylwia.id, affection:10)
+PlantParenthood.create(plant_id: corn_tree.id, plant_parent_id: sylwia.id, affection:10)
+
+puts "🌱 🌱 🌱  SEEDED 🌱 🌱 🌱 🌱 "
+#+end_src
+- I then created another migration so that we could change the 'plant_parent_id' to 'person_id' with the following 'rake db:create_migration' command:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ rake db:create_migration NAME=change_plant_parent_id_to_person_id
+db/migrate/20220915005653_change_plant_parent_id_to_person_id.rb
+#+end_src
+- I then had the following present in the contents of the 'lecture_kit/db/migrate/20220915005653_change_plant_parent_id_to_person_id.rb' migration file:
+#+begin_src ruby
+class ChangePlantParentIdToPersonId < ActiveRecord::Migration[5.2]
+  def change
+    rename_column :plant_parenthoods, :plant_parent_id, :person_id
+  end
+end
+#+end_src
+- I then ran the following 'bundle exec rake db:migrate' command:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake db:migrate
+== 20220915005653 ChangePlantParentIdToPersonId: migrating ====================
+-- rename_column(:plant_parenthoods, :plant_parent_id, :person_id)
+   -> 0.0023s
+== 20220915005653 ChangePlantParentIdToPersonId: migrated (0.0024s) ===========
+#+end_src
+- I then changed the contents of the seed file, 'lecture_kit/db/seeds.rb' to the following to reflect the 'person_id' column:
+#+begin_src ruby
+Plant.destroy_all
+Plant.reset_pk_sequence
+Category.destroy_all
+Category.reset_pk_sequence
+Person.destroy_all
+Person.reset_pk_sequence
+PlantParenthood.destroy_all
+PlantParenthood.reset_pk_sequence
+PlantCategory.destroy_all
+PlantCategory.reset_pk_sequence
+
+outdoor = Category.create(name: "outdoor")
+indoor = Category.create(name: "indoor")
+leafy = Category.create(name: "leafy")
+succulent = Category.create(name: "succulent")
+
+basil = Plant.create(species: "basil the herb", bought: "20200610", color: "green", fussy: true)
+PlantCategory.create(plant_id: basil.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: basil.id, category_id: indoor.id)
+PlantCategory.create(plant_id: basil.id, category_id: leafy.id)
+corn_tree = Plant.create(species: "Corn Tree", bought: "20170203", color: "green", fussy: false)
+PlantCategory.create(plant_id: corn_tree.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: corn_tree.id, category_id: indoor.id)
+PlantCategory.create(plant_id: corn_tree.id, category_id: leafy.id)
+prayer_plant = Plant.create(species: "Prayer plant", bought: "20190815", color: "purple", fussy: false)
+cactus_1 = Plant.create(species: "Cactus", bought: "20200110", color: "ugly green", fussy: false)
+elephant_bush = Plant.create(species: "Elephant bush", bought: "20180908", color: "green", fussy: true)
+photos = Plant.create(species: "Photos", bought: "20170910", color: "green", fussy: false)
+dragon_tree = Plant.create(species: "Dragon tree", bought: "20170910", color: "green", fussy: false)
+snake_plant = Plant.create(species: "Snake plant", bought: "20170910", color: "dark green", fussy: false)
+polka_dot_plant = Plant.create(species: "polka dot plant", bought: "20170915", color: "pink and green", fussy: false)
+cactus_2 = Plant.create(species: "Cactus", bought: "20200517", color: "green", fussy: false)
+PlantCategory.create(plant_id: cactus_2.id, category_id: outdoor.id)
+PlantCategory.create(plant_id: cactus_2.id, category_id: indoor.id)
+PlantCategory.create(plant_id: cactus_2.id, category_id: succulent.id)
+
+# binding.pry
+
+joel = Person.create(name: "Joel", responsible: false, age: 10_000)
+sylwia = Person.create(name: "Sylwia", responsible: true, age: 31)
+
+PlantParenthood.create(plant_id: prayer_plant.id, person_id: joel.id, affection:0)
+PlantParenthood.create(plant_id: basil.id, person_id: joel.id, affection:1)
+PlantParenthood.create(plant_id: basil.id, person_id: sylwia.id, affection:10)
+PlantParenthood.create(plant_id: corn_tree.id, person_id: sylwia.id, affection:10)
+
+puts "🌱 🌱 🌱  SEEDED 🌱 🌱 🌱 🌱 "
+#+end_src
+- I then used the 'bundle exec rake db:seed' command to re-seed the database:
+#+begin_src ruby
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake db:seed
+🌱 🌱 🌱  SEEDED 🌱 🌱 🌱 🌱
+#+end_src
+- I then used various 'rake console' commands accordingly:
+#+begin_src ruby
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ rake console
+
+[2] pry(main)> Person.first.plants
+D, [2022-09-14T20:04:33.839708 #21929] DEBUG -- :   Person Load (0.1ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:04:33.875442 #21929] DEBUG -- :   Plant Load (0.1ms)  SELECT "plants".* FROM "plants" INNER JOIN "plant_parenthoods" ON "plants"."id" = "plant_parenthoods"."plant_id" WHERE "plant_parenthoods"."person_id" = ?  [["person_id", 1]]
+=> [#<Plant:0x00007f7af310cfc8
+  id: 3,
+  species: "Prayer plant",
+  color: "purple",
+  bought: 2019-08-15 00:00:00 UTC,
+  fussy: false>,
+ #<Plant:0x00007f7af310c8c0
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>]
+#+end_src
+
+** Introduce a Watering model
+1. Create a new migration: introduce a new table + migrate — remember to add t.timestamps to the table, we will need that to see all the Waterings that happened!
+- I created the related migration with the 'bundle exec rake db:create_migration' command:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake db:create_migration NAME=create_waterings
+db/migrate/20220915010725_create_waterings.rb
+#+end_src
+- I then placed the following in the contents of the 'lecture_kit/db/migrate/20220915010725_create_waterings.rb' file:
+#+begin_src ruby
+class CreateWaterings < ActiveRecord::Migration[5.2]
+  def change
+    create_table :waterings do |t|
+      t.integer :plant_id
+      t.integer :person_id
+      t.timestamps
+    end
+  end
+end
+#+end_src
+- I then ran the related 'bundle exec rake db:migrate' command:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake db:migrate
+== 20220915010725 CreateWaterings: migrating ==================================
+-- create_table(:waterings)
+   -> 0.0007s
+== 20220915010725 CreateWaterings: migrated (0.0008s) =========================
+#+end_src
+
+2. Create a corresponding model
+- I then created a related model in 'app/models/watering.rb' with the following contents:
+#+begin_src ruby
+class Watering < ActiveRecord::Base
+    belongs_to :person
+    belongs_to :plant
+   # def plant_parents
+   #     # before ActiveRecord
+   #     PlantParent.all.select{|plant_parent| plant_parent == self.plant_parents}
+   #     # AR:
+   #     id_num = self.plant_parent_id
+   #     PlantParent.find(id_num)
+   # end
+end
+#+end_src
+- I then changed the 'app/models/plant.rb' to reflect this new relationship:
+#+begin_src ruby
+class Plant < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :people, through: :plant_parenthoods
+    has_many :plant_categories
+    has_many :categories, through: :plant_categories
+    has_many :waterings
+    has_many :categories, through: :waterings
+end
+#+end_src
+- I then changed the 'app/models/person.rb' to reflect this new relationship:
+#+begin_src ruby
+class Person < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :plants, through: :plant_parenthoods
+    has_many :waterings
+    has_many :plants, through: :waterings
+end
+#+end_src
+
+3. Add associations — please refer to the video, this one is tricky!
+- I then used 'bundle exec rake console' to check my changes, which showcased that the 'app/models/person.rb' revisions actually had a flaw since the 'has_many :waterings' relationship overrode the 'has_many :plant_parenthoods' relationship:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ rake console
+[1] pry(main)> Person.first()
+D, [2022-09-14T20:17:09.375133 #22441] DEBUG -- :   Person Load (0.1ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Person:0x00007fb3f611b3e8
+ id: 1,
+ name: "Joel",
+ responsible: false,
+ age: 10000>
+[2] pry(main)> Watering.create(person_id: 1, plant_id: 1)
+D, [2022-09-14T20:17:45.148939 #22441] DEBUG -- :    (0.1ms)  begin transaction
+D, [2022-09-14T20:17:45.152173 #22441] DEBUG -- :   Watering Create (2.0ms)  INSERT INTO "waterings" ("plant_id", "person_id", "created_at", "updated_at") VALUES (?, ?, ?, ?)  [["plant_id", 1], ["person_id", 1], ["created_at", "2022-09-15 01:17:45.149287"], ["updated_at", "2022-09-15 01:17:45.149287"]]
+D, [2022-09-14T20:17:45.154824 #22441] DEBUG -- :    (2.3ms)  commit transaction
+=> #<Watering:0x00007fb3f6baa1d8
+ id: 1,
+ plant_id: 1,
+ person_id: 1,
+ created_at: 2022-09-15 01:17:45.149287 UTC,
+ updated_at: 2022-09-15 01:17:45.149287 UTC>
+[3] pry(main)> Watering.all()
+D, [2022-09-14T20:17:51.961827 #22441] DEBUG -- :   Watering Load (0.2ms)  SELECT "waterings".* FROM "waterings"
+=> [#<Watering:0x00007fb3f61a45a8
+  id: 1,
+  plant_id: 1,
+  person_id: 1,
+  created_at: 2022-09-15 01:17:45.149287 UTC,
+  updated_at: 2022-09-15 01:17:45.149287 UTC>]
+[4] pry(main)> Watering.first()
+D, [2022-09-14T20:17:57.802317 #22441] DEBUG -- :   Watering Load (0.2ms)  SELECT  "waterings".* FROM "waterings" ORDER BY "waterings"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Watering:0x00007fb3f6ef4988
+ id: 1,
+ plant_id: 1,
+ person_id: 1,
+ created_at: 2022-09-15 01:17:45.149287 UTC,
+ updated_at: 2022-09-15 01:17:45.149287 UTC>
+[5] pry(main)> Watering.first.person()
+D, [2022-09-14T20:18:07.733272 #22441] DEBUG -- :   Watering Load (0.1ms)  SELECT  "waterings".* FROM "waterings" ORDER BY "waterings"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:18:07.743559 #22441] DEBUG -- :   Person Load (0.2ms)  SELECT  "people".* FROM "people" WHERE "people"."id" = ? LIMIT ?  [["id", 1], ["LIMIT", 1]]
+=> #<Person:0x00007fb3f6e57750
+ id: 1,
+ name: "Joel",
+ responsible: false,
+ age: 10000>
+[6] pry(main)> person = Person.first()
+D, [2022-09-14T20:18:32.857340 #22441] DEBUG -- :   Person Load (0.1ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Person:0x00007fb3f6e15120
+ id: 1,
+ name: "Joel",
+ responsible: false,
+ age: 10000>
+[7] pry(main)> person.waterings()
+D, [2022-09-14T20:18:42.642582 #22441] DEBUG -- :   Watering Load (0.2ms)  SELECT "waterings".* FROM "waterings" WHERE "waterings"."person_id" = ?  [["person_id", 1]]
+=> [#<Watering:0x00007fb3f6d7c038
+  id: 1,
+  plant_id: 1,
+  person_id: 1,
+  created_at: 2022-09-15 01:17:45.149287 UTC,
+  updated_at: 2022-09-15 01:17:45.149287 UTC>]
+[8] pry(main)> person.plants()
+D, [2022-09-14T20:18:49.114122 #22441] DEBUG -- :   Plant Load (0.2ms)  SELECT "plants".* FROM "plants" INNER JOIN "waterings" ON "plants"."id" = "waterings"."plant_id" WHERE "waterings"."person_id" = ?  [["person_id", 1]]
+=> [#<Plant:0x00007fb3f6f5d758
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>]
+[9] pry(main)> second_person = Person.second()
+D, [2022-09-14T20:19:04.494903 #22441] DEBUG -- :   Person Load (0.2ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Person:0x00007fb3f6ec7190
+ id: 2,
+ name: "Sylwia",
+ responsible: true,
+ age: 31>
+[10] pry(main)> second_person.plants()
+D, [2022-09-14T20:19:14.805244 #22441] DEBUG -- :   Plant Load (0.1ms)  SELECT "plants".* FROM "plants" INNER JOIN "waterings" ON "plants"."id" = "waterings"."plant_id" WHERE "waterings"."person_id" = ?  [["person_id", 2]]
+=> []
+#+end_src
+- I then revised the contents of the 'lecture_kit/app/models/watering.rb' file to the following to include an alias to establish the correct relationship:
+#+begin_src ruby
+class Watering < ActiveRecord::Base
+   # Previous code before revision to include alias:
+   # belongs_to :person
+   belongs_to :waterer, :class_name => "Person", :foreign_key => "person_id"
+   # Previous code before revision to include alias:
+   belongs_to :wateree, :class_name => "Plant", :foreign_key => "plant_id"
+   # belongs_to :plant
+   # def plant_parents
+   #     # before ActiveRecord
+   #     PlantParent.all.select{|plant_parent| plant_parent == self.plant_parents}
+   #     # AR:
+   #     id_num = self.plant_parent_id
+   #     PlantParent.find(id_num)
+   # end
+end
+#+end_src
+- I then checked my changes with 'bundle exec rake console':
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake console
+[1] pry(main)> Watering.first
+D, [2022-09-14T20:26:26.521256 #22728] DEBUG -- :   Watering Load (0.1ms)  SELECT  "waterings".* FROM "waterings" ORDER BY "waterings"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Watering:0x00007ff0e5997450
+ id: 1,
+ plant_id: 1,
+ person_id: 1,
+ created_at: 2022-09-15 01:17:45.149287 UTC,
+ updated_at: 2022-09-15 01:17:45.149287 UTC>
+[2] pry(main)> Watering.first.waterer
+D, [2022-09-14T20:26:35.658172 #22728] DEBUG -- :   Watering Load (0.3ms)  SELECT  "waterings".* FROM "waterings" ORDER BY "waterings"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:26:35.671601 #22728] DEBUG -- :   Person Load (0.2ms)  SELECT  "people".* FROM "people" WHERE "people"."id" = ? LIMIT ?  [["id", 1], ["LIMIT", 1]]
+=> #<Person:0x00007ff0e2b38280
+ id: 1,
+ name: "Joel",
+ responsible: false,
+ age: 10000>
+[3] pry(main)> Watering.first.wateree
+D, [2022-09-14T20:26:38.053396 #22728] DEBUG -- :   Watering Load (0.1ms)  SELECT  "waterings".* FROM "waterings" ORDER BY "waterings"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:26:38.056030 #22728] DEBUG -- :   Plant Load (0.2ms)  SELECT  "plants".* FROM "plants" WHERE "plants"."id" = ? LIMIT ?  [["id", 1], ["LIMIT", 1]]
+=> #<Plant:0x00007ff0e6452c28
+ id: 1,
+ species: "basil the herb",
+ color: "green",
+ bought: 2020-06-10 00:00:00 UTC,
+ fussy: true>
+#+end_src
+- I then revised the 'lecture_kit/app/models/person.rb' file to reflect the new relationship with the aliases I created:
+#+begin_src ruby
+class Person < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :plants, through: :plant_parenthoods
+    has_many :waterings
+    has_many :waterees, through: :waterings
+end
+#+end_src
+- I then revised the 'lecture_kit/app/models/plant.rb' file to reflect the new relationship with the aliases I created:
+#+begin_src ruby
+class Plant < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :people, through: :plant_parenthoods
+    has_many :plant_categories
+    has_many :categories, through: :plant_categories
+    has_many :waterings
+    has_many :waterers, through: :waterings
+end
+#+end_src
+
+4. Test in seeds
+- I then checked my changes with 'bundle exec rake console':
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake console
+[1] pry(main)> Watering.first
+D, [2022-09-14T20:26:26.521256 #22728] DEBUG -- :   Watering Load (0.1ms)  SELECT  "waterings".* FROM "waterings" ORDER BY "waterings"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Watering:0x00007ff0e5997450
+ id: 1,
+ plant_id: 1,
+ person_id: 1,
+ created_at: 2022-09-15 01:17:45.149287 UTC,
+ updated_at: 2022-09-15 01:17:45.149287 UTC>
+[2] pry(main)> Watering.first.waterer
+D, [2022-09-14T20:26:35.658172 #22728] DEBUG -- :   Watering Load (0.3ms)  SELECT  "waterings".* FROM "waterings" ORDER BY "waterings"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:26:35.671601 #22728] DEBUG -- :   Person Load (0.2ms)  SELECT  "people".* FROM "people" WHERE "people"."id" = ? LIMIT ?  [["id", 1], ["LIMIT", 1]]
+=> #<Person:0x00007ff0e2b38280
+ id: 1,
+ name: "Joel",
+ responsible: false,
+ age: 10000>
+[3] pry(main)> Watering.first.wateree
+D, [2022-09-14T20:26:38.053396 #22728] DEBUG -- :   Watering Load (0.1ms)  SELECT  "waterings".* FROM "waterings" ORDER BY "waterings"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:26:38.056030 #22728] DEBUG -- :   Plant Load (0.2ms)  SELECT  "plants".* FROM "plants" WHERE "plants"."id" = ? LIMIT ?  [["id", 1], ["LIMIT", 1]]
+=> #<Plant:0x00007ff0e6452c28
+ id: 1,
+ species: "basil the herb",
+ color: "green",
+ bought: 2020-06-10 00:00:00 UTC,
+ fussy: true>
+[4] pry(main)>
+
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake console
+[1] pry(main)> person = Person.first()
+D, [2022-09-14T20:29:54.226949 #22842] DEBUG -- :   Person Load (0.1ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Person:0x00007faab3c1f240
+ id: 1,
+ name: "Joel",
+ responsible: false,
+ age: 10000>
+[2] pry(main)> person.plants()
+D, [2022-09-14T20:30:13.202340 #22842] DEBUG -- :   Plant Load (0.1ms)  SELECT "plants".* FROM "plants" INNER JOIN "plant_parenthoods" ON "plants"."id" = "plant_parenthoods"."plant_id" WHERE "plant_parenthoods"."person_id" = ?  [["person_id", 1]]
+=> [#<Plant:0x00007faab7a6ae00
+  id: 3,
+  species: "Prayer plant",
+  color: "purple",
+  bought: 2019-08-15 00:00:00 UTC,
+  fussy: false>,
+ #<Plant:0x00007faab7a6ab08
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>]
+[3] pry(main)> person.waterees()
+D, [2022-09-14T20:30:28.945927 #22842] DEBUG -- :   Plant Load (0.2ms)  SELECT "plants".* FROM "plants" INNER JOIN "waterings" ON "plants"."id" = "waterings"."plant_id" WHERE "waterings"."person_id" = ?  [["person_id", 1]]
+=> [#<Plant:0x00007faab6a4e8c8
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>]
+[4] pry(main)> second_person = Person.second()
+D, [2022-09-14T20:30:43.977875 #22842] DEBUG -- :   Person Load (0.2ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Person:0x00007faab69cc7d8
+ id: 2,
+ name: "Sylwia",
+ responsible: true,
+ age: 31>
+[5] pry(main)> second_person.plants()
+D, [2022-09-14T20:30:58.641138 #22842] DEBUG -- :   Plant Load (0.1ms)  SELECT "plants".* FROM "plants" INNER JOIN "plant_parenthoods" ON "plants"."id" = "plant_parenthoods"."plant_id" WHERE "plant_parenthoods"."person_id" = ?  [["person_id", 2]]
+=> [#<Plant:0x00007faab79b9600
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>,
+ #<Plant:0x00007faab79b9290
+  id: 2,
+  species: "Corn Tree",
+  color: "green",
+  bought: 2017-02-03 00:00:00 UTC,
+  fussy: false>]
+[6] pry(main)> second_person.waterees()
+D, [2022-09-14T20:31:10.119725 #22842] DEBUG -- :   Plant Load (0.2ms)  SELECT "plants".* FROM "plants" INNER JOIN "waterings" ON "plants"."id" = "waterings"."plant_id" WHERE "waterings"."person_id" = ?  [["person_id", 2]]
+=> []
+[7] pry(main)> Plant.first.waterers()
+D, [2022-09-14T20:31:39.126398 #22842] DEBUG -- :   Plant Load (0.4ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:31:39.131219 #22842] DEBUG -- :   Person Load (0.2ms)  SELECT "people".* FROM "people" INNER JOIN "waterings" ON "people"."id" = "waterings"."person_id" WHERE "waterings"."plant_id" = ?  [["plant_id", 1]]
+=> [#<Person:0x00007faab70f99c0
+  id: 1,
+  name: "Joel",
+  responsible: false,
+  age: 10000>]
+[8] pry(main)> Plant.first.people()
+D, [2022-09-14T20:31:49.285023 #22842] DEBUG -- :   Plant Load (0.1ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:31:49.288761 #22842] DEBUG -- :   Person Load (0.3ms)  SELECT "people".* FROM "people" INNER JOIN "plant_parenthoods" ON "people"."id" = "plant_parenthoods"."person_id" WHERE "plant_parenthoods"."plant_id" = ?  [["plant_id", 1]]
+=> [#<Person:0x00007faab3c75820
+  id: 1,
+  name: "Joel",
+  responsible: false,
+  age: 10000>,
+ #<Person:0x00007faab3c74ee8
+  id: 2,
+  name: "Sylwia",
+  responsible: true,
+  age: 31>]
+#+end_src
+
+** Add Behavior
+*** Person#water_plant: accepts an argument of a plant and creates a new instance of
+#+begin_src ruby
+# Person#water_plant: accepts an argument of a plant and creates a new instance of
+# Watering between the person and the plant;
+
+# if there is an associated PlantParenthood with both, this method also increases the value of affection by one
+#+end_src
+- Inside 'lecture_kit/app/models/person.rb' file, I placed the following contents with a line for 'binding.pry()' so that I could interact with 'bundle exec rake console' later to determine how I wanted to write this:
+#+begin_src ruby
+class Person < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :plants, through: :plant_parenthoods
+    has_many :waterings
+    has_many :waterees, through: :waterings
+
+    # Person#water_plant: accepts an argument of a plant and creates a new instance of
+    # Watering between the person and the plant;
+    # if there is an associated PlantParenthood with both, this method also increases the value of affection by one
+    def water_plant()
+        binding.pry()
+    end
+end
+#+end_src
+- I then used the following in 'bundle exec rake console' to figure out next steps for the 'lecture_kit/app/models/person.rb' file:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake console
+[1] pry(main)> person = Person.first()
+D, [2022-09-14T20:29:54.226949 #22842] DEBUG -- :   Person Load (0.1ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Person:0x00007faab3c1f240
+ id: 1,
+ name: "Joel",
+ responsible: false,
+ age: 10000>
+[2] pry(main)> person.plants()
+D, [2022-09-14T20:30:13.202340 #22842] DEBUG -- :   Plant Load (0.1ms)  SELECT "plants".* FROM "plants" INNER JOIN "plant_parenthoods" ON "plants"."id" = "plant_parenthoods"."plant_id" WHERE "plant_parenthoods"."person_id" = ?  [["person_id", 1]]
+=> [#<Plant:0x00007faab7a6ae00
+  id: 3,
+  species: "Prayer plant",
+  color: "purple",
+  bought: 2019-08-15 00:00:00 UTC,
+  fussy: false>,
+ #<Plant:0x00007faab7a6ab08
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>]
+[3] pry(main)> person.waterees()
+D, [2022-09-14T20:30:28.945927 #22842] DEBUG -- :   Plant Load (0.2ms)  SELECT "plants".* FROM "plants" INNER JOIN "waterings" ON "plants"."id" = "waterings"."plant_id" WHERE "waterings"."person_id" = ?  [["person_id", 1]]
+=> [#<Plant:0x00007faab6a4e8c8
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>]
+[4] pry(main)> second_person = Person.second()
+D, [2022-09-14T20:30:43.977875 #22842] DEBUG -- :   Person Load (0.2ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Person:0x00007faab69cc7d8
+ id: 2,
+ name: "Sylwia",
+ responsible: true,
+ age: 31>
+[5] pry(main)> second_person.plants()
+D, [2022-09-14T20:30:58.641138 #22842] DEBUG -- :   Plant Load (0.1ms)  SELECT "plants".* FROM "plants" INNER JOIN "plant_parenthoods" ON "plants"."id" = "plant_parenthoods"."plant_id" WHERE "plant_parenthoods"."person_id" = ?  [["person_id", 2]]
+=> [#<Plant:0x00007faab79b9600
+  id: 1,
+  species: "basil the herb",
+  color: "green",
+  bought: 2020-06-10 00:00:00 UTC,
+  fussy: true>,
+ #<Plant:0x00007faab79b9290
+  id: 2,
+  species: "Corn Tree",
+  color: "green",
+  bought: 2017-02-03 00:00:00 UTC,
+  fussy: false>]
+[6] pry(main)> second_person.waterees()
+D, [2022-09-14T20:31:10.119725 #22842] DEBUG -- :   Plant Load (0.2ms)  SELECT "plants".* FROM "plants" INNER JOIN "waterings" ON "plants"."id" = "waterings"."plant_id" WHERE "waterings"."person_id" = ?  [["person_id", 2]]
+=> []
+[7] pry(main)> Plant.first.waterers()
+D, [2022-09-14T20:31:39.126398 #22842] DEBUG -- :   Plant Load (0.4ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:31:39.131219 #22842] DEBUG -- :   Person Load (0.2ms)  SELECT "people".* FROM "people" INNER JOIN "waterings" ON "people"."id" = "waterings"."person_id" WHERE "waterings"."plant_id" = ?  [["plant_id", 1]]
+=> [#<Person:0x00007faab70f99c0
+  id: 1,
+  name: "Joel",
+  responsible: false,
+  age: 10000>]
+[8] pry(main)> Plant.first.people()
+D, [2022-09-14T20:31:49.285023 #22842] DEBUG -- :   Plant Load (0.1ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ?  [["LIMIT", 1]]
+D, [2022-09-14T20:31:49.288761 #22842] DEBUG -- :   Person Load (0.3ms)  SELECT "people".* FROM "people" INNER JOIN "plant_parenthoods" ON "people"."id" = "plant_parenthoods"."person_id" WHERE "plant_parenthoods"."plant_id" = ?  [["plant_id", 1]]
+=> [#<Person:0x00007faab3c75820
+  id: 1,
+  name: "Joel",
+  responsible: false,
+  age: 10000>,
+ #<Person:0x00007faab3c74ee8
+  id: 2,
+  name: "Sylwia",
+  responsible: true,
+  age: 31>]
+[9] pry(main)>
+
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ rake console
+[1] pry(main)> plant = Plant.second()
+D, [2022-09-14T20:38:09.345917 #23076] DEBUG -- :   Plant Load (0.1ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Plant:0x00007fc5900dd6a0
+ id: 2,
+ species: "Corn Tree",
+ color: "green",
+ bought: 2017-02-03 00:00:00 UTC,
+ fussy: false>
+[2] pry(main)> person = Person.second()
+D, [2022-09-14T20:38:21.208470 #23076] DEBUG -- :   Person Load (4.5ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Person:0x00007fc5946a1510
+ id: 2,
+ name: "Sylwia",
+ responsible: true,
+ age: 31>
+[3] pry(main)> person.water_plant(plant)
+ArgumentError: wrong number of arguments (given 1, expected 0)
+from /Users/samuelbanya/hub/Development/code/phase-3/phase-3-ar-more-models-practice/lecture_kit/app/models/person.rb:10:in `water_plant'
+[4] pry(main)>
+
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ rake console
+[1] pry(main)> plant = Plant.second()
+D, [2022-09-14T20:40:05.403819 #23227] DEBUG -- :   Plant Load (0.1ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Plant:0x00007fa09f9edf08
+ id: 2,
+ species: "Corn Tree",
+ color: "green",
+ bought: 2017-02-03 00:00:00 UTC,
+ fussy: false>
+[2] pry(main)> person = Person.second()
+D, [2022-09-14T20:40:08.536778 #23227] DEBUG -- :   Person Load (4.5ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Person:0x00007fa09fb0d500
+ id: 2,
+ name: "Sylwia",
+ responsible: true,
+ age: 31>
+[3] pry(main)> person.water_plant(plant)
+
+From: /Users/samuelbanya/hub/Development/code/phase-3/phase-3-ar-more-models-practice/lecture_kit/app/models/person.rb:11 Person#water_plant:
+
+    10: def water_plant(plant)
+ => 11:     binding.pry()
+    12: end
+[1] pry(#<Person>)> Watering.create(person_id: self.id, plant_id: plant_id)
+[1] pry(#<Person>)> Watering.create(person_id: self.id, plant_id: plant_id)NameError: undefined local variable or method `plant_id' for #<Person id: 2, name: "Sylwia", responsible: true, age: 31>
+Did you mean?  plant_ids
+               plant_ids=
+from /Users/samuelbanya/.rvm/gems/ruby-2.7.4/gems/activemodel-5.2.4.3/lib/a[2] pry(#<Person>)> Watering.create(person_id: self.id, plant_id: plant_id)
+[2] pry(#<Person>)> Watering.create(person_id: self.id, plant_id: plant_id)NameError: undefined local variable or method `plant_id' for #<Person id: 2, name: "Sylwia", responsible: true, age: 31>
+Did you mean?  plant_ids
+               plant_ids=
+from /Users/samuelbanya/.rvm/gems/ruby-2.7.4/gems/activemodel-5.2.4.3/lib/a[3] pry(#<Person>)> Watering.create(person_id: self.id, plant_id: plant.id)
+[3] pry(#<Person>)> Watering.create(person_id: self.id, plant_id: plant.id)D, [2022-09-14T20:41:56.585230 #23227] DEBUG -- :    (0.1ms)  begin transaction
+D, [2022-09-14T20:41:56.613391 #23227] DEBUG -- :   Watering Create (26.5ms)  INSERT INTO "waterings" ("plant_id", "person_id", "created_at", "updated_at") VALUES (?, ?, ?, ?)  [["plant_id", 2], ["person_id", 2], ["created_at", "2022-09-15 01:41:56.585860"], ["updated_at", "2022-09-15 01:41:56.585860"]]
+D, [2022-09-14T20:41:56.616823 #23227] DEBUG -- :    (3.2ms)  commit transaction
+=> #<Watering:0x00007fa09f22fe10
+ id: 2,
+ plant_id: 2,
+ person_id: 2,
+ created_at: 2022-09-15 01:41:56.58586 UTC,
+ updated_at: 2022-09-15 01:41:56.58586 UTC>
+[4] pry(#<Person>)>
+
+=> nil
+[4] pry(main)>
+
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ rake console
+[1] pry(main)> person = Person.second()
+D, [2022-09-14T20:42:08.423314 #23314] DEBUG -- :   Person Load (0.1ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Person:0x00007fb56ba3fe58
+ id: 2,
+ name: "Sylwia",
+ responsible: true,
+ age: 31>
+[2] pry(main)> plant = Plant.second()
+D, [2022-09-14T20:42:12.030620 #23314] DEBUG -- :   Plant Load (0.4ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 1]]
+=> #<Plant:0x00007fb56f139fd0
+ id: 2,
+ species: "Corn Tree",
+ color: "green",
+ bought: 2017-02-03 00:00:00 UTC,
+ fussy: false>
+[3] pry(main)> person.water_plant(plant)
+
+From: /Users/samuelbanya/hub/Development/code/phase-3/phase-3-ar-more-models-practice/lecture_kit/app/models/person.rb:11 Person#water_plant:
+
+    10: def water_plant(plant)
+ => 11:     binding.pry()
+    12: end
+[1] pry(#<Person>)> Watering.create(person_id: self.id, plant_id: plant.id)
+[1] pry(#<Person>)> Watering.create(person_id: self.id, plant_id: plant.id)D, [2022-09-14T20:42:21.656450 #23314] DEBUG -- :    (0.1ms)  begin transaction
+D, [2022-09-14T20:42:21.669083 #23314] DEBUG -- :   Watering Create (11.4ms)  INSERT INTO "waterings" ("plant_id", "person_id", "created_at", "updated_at") VALUES (?, ?, ?, ?)  [["plant_id", 2], ["person_id", 2], ["created_at", "2022-09-15 01:42:21.656838"], ["updated_at", "2022-09-15 01:42:21.656838"]]
+D, [2022-09-14T20:42:21.671697 #23314] DEBUG -- :    (2.1ms)  commit transaction
+=> #<Watering:0x00007fb56eafa0e8
+ id: 3,
+ plant_id: 2,
+ person_id: 2,
+ created_at: 2022-09-15 01:42:21.656838 UTC,
+ updated_at: 2022-09-15 01:42:21.656838 UTC>
+[2] pry(#<Person>)> pp = plant_parenthoods()
+D, [2022-09-14T20:44:01.130887 #23314] DEBUG -- :   PlantParenthood Load (0.1ms)  SELECT "plant_parenthoods".* FROM "plant_parenthoods" WHERE "plant_parenthoods"."person_id" = ?  [["person_id", 2]]
+=> [#<PlantParenthood:0x00007fb56b193b10
+  id: 3,
+  plant_id: 1,
+  person_id: 2,
+  affection: 10>,
+ #<PlantParenthood:0x00007fb56b1f0518
+  id: 4,
+  plant_id: 2,
+  person_id: 2,
+  affection: 10>]
+[3] pry(#<Person>)> pp = plant_parenthoods.find_by(plant: plant)
+D, [2022-09-14T20:44:18.308297 #23314] DEBUG -- :   PlantParenthood Load (0.3ms)  SELECT  "plant_parenthoods".* FROM "plant_parenthoods" WHERE "plant_parenthoods"."person_id" = ? AND "plant_parenthoods"."plant_id" = ? LIMIT ?  [["person_id", 2], ["plant_id", 2], ["LIMIT", 1]]
+=> #<PlantParenthood:0x00007fb56ba4b960
+ id: 4,
+ plant_id: 2,
+ person_id: 2,
+ affection: 10>
+[4] pry(#<Person>)> if pp
+            affection = pp.affection
+            affection += 1
+[4] pry(#<Person>)> if pp ction: affection)
+  affection = pp.affection
+  affection += 1
+  pp.update(affection: affection)
+D, [2022-09-14T20:47:29.679942 #23314] DEBUG -- :    (0.1ms)  begin transaction
+D, [2022-09-14T20:47:29.681280 #23314] DEBUG -- :   PlantParenthood Update (0.5ms)  UPDATE "plant_parenthoods" SET "affection" = ? WHERE "plant_parenthoods"."id" = ?  [["affection", 11], ["id", 4]]
+D, [2022-09-14T20:47:29.682579 #23314] DEBUG -- :    (1.1ms)  commit transaction
+=> true
+[5] pry(#<Person>)> pp
+=> #<PlantParenthood:0x00007fb56ba4b960
+ id: 4,
+ plant_id: 2,
+ person_id: 2,
+ affection: 11>
+[6] pry(#<Person>)>
+
+=> nil
+[4] pry(main)>
+
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ rake console
+[1] pry(main)> bundle exec rake console
+NameError: undefined local variable or method `console' for main:Object
+from (pry):1:in `__pry__'
+[2] pry(main)>
+
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake console
+[1] pry(main)> plant = Plant.third()
+D, [2022-09-14T20:49:05.830547 #23588] DEBUG -- :   Plant Load (0.1ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 2]]
+=> #<Plant:0x00007fa615a9c370
+ id: 3,
+ species: "Prayer plant",
+ color: "purple",
+ bought: 2019-08-15 00:00:00 UTC,
+ fussy: false>
+[2] pry(main)> person = Person.first()
+D, [2022-09-14T20:49:14.310327 #23588] DEBUG -- :   Person Load (0.1ms)  SELECT  "people".* FROM "people" ORDER BY "people"."id" ASC LIMIT ?  [["LIMIT", 1]]
+=> #<Person:0x00007fa61515abb8
+ id: 1,
+ name: "Joel",
+ responsible: false,
+ age: 10000>
+[3] pry(main)> person.water_plant(plant)
+D, [2022-09-14T20:49:27.028601 #23588] DEBUG -- :    (0.1ms)  begin transaction
+D, [2022-09-14T20:49:27.032131 #23588] DEBUG -- :   Watering Create (2.1ms)  INSERT INTO "waterings" ("plant_id", "person_id", "created_at", "updated_at") VALUES (?, ?, ?, ?)  [["plant_id", 3], ["person_id", 1], ["created_at", "2022-09-15 01:49:27.028976"], ["updated_at", "2022-09-15 01:49:27.028976"]]
+D, [2022-09-14T20:49:27.033596 #23588] DEBUG -- :    (1.2ms)  commit transaction
+D, [2022-09-14T20:49:27.044577 #23588] DEBUG -- :   PlantParenthood Load (0.1ms)  SELECT  "plant_parenthoods".* FROM "plant_parenthoods" WHERE "plant_parenthoods"."person_id" = ? AND "plant_parenthoods"."plant_id" = ? LIMIT ?  [["person_id", 1], ["plant_id", 3], ["LIMIT", 1]]
+
+From: /Users/samuelbanya/hub/Development/code/phase-3/phase-3-ar-more-models-practice/lecture_kit/app/models/person.rb:14 Person#water_plant:
+
+    10: def water_plant(plant)
+    11:     Watering.create(person_id: self.id, plant_id: plant.id)
+    12:     # binding.pry()
+    13:     pp = plant_parenthoods.find_by(plant: plant)
+[1] pry(#<Person>)> pp
+=> #<PlantParenthood:0x00007fa615ade4c8
+ id: 1,
+ plant_id: 3,
+ person_id: 1,
+ affection: 0>
+[2] pry(#<Person>)>         if pp
+            affection = pp.affection
+            affection += 1
+[2] pry(#<Person>)> if pp ction: affection)
+  affection = pp.affection
+  affection += 1
+  pp.update(affection: affection)
+D, [2022-09-14T20:49:56.426468 #23588] DEBUG -- :    (0.1ms)  begin transaction
+D, [2022-09-14T20:49:56.428279 #23588] DEBUG -- :   PlantParenthood Update (0.6ms)  UPDATE "plant_parenthoods" SET "affection" = ? WHERE "plant_parenthoods"."id" = ?  [["affection", 1], ["id", 1]]
+D, [2022-09-14T20:49:56.430179 #23588] DEBUG -- :    (1.6ms)  commit transaction
+=> true
+[3] pry(#<Person>)> "a" || "b"
+=> "a"
+[4] pry(#<Person>)> false || "b"
+=> "b"
+[5] pry(#<Person>)> pp
+=> #<PlantParenthood:0x00007fa615ade4c8
+ id: 1,
+ plant_id: 3,
+ person_id: 1,
+ affection: 1>
+[6] pry(#<Person>)>
+#+end_src
+- I then revised the 'lecture_kit/app/models/person.rb' file with the following contents:
+#+begin_src ruby
+class Person < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :plants, through: :plant_parenthoods
+    has_many :waterings
+    has_many :waterees, through: :waterings
+
+    # Person#water_plant: accepts an argument of a plant and creates a new instance of
+    # Watering between the person and the plant;
+    # if there is an associated PlantParenthood with both, this method also increases the value of affection by one
+    def water_plant(plant)
+        Watering.create(person_id: self.id, plant_id: plant.id)
+        # binding.pry()
+        pp = plant_parenthoods.find_by(plant: plant)
+        binding.pry()
+        if pp
+            affection = pp.affection || 1
+            affection += 1
+            pp.update(affection: affection)
+        end
+    end
+end
+#+end_src
+*** PlantParenthood#cap_affection: introduces a cap on the affection value at 11_000
+- I modified the contents of the 'lecture_kit/app/models/plant_parenthood.rb' file to include the following:
+#+begin_src ruby
+class PlantParenthood < ActiveRecord::Base
+    before_save :cap_affection
+
+    belongs_to :person
+    belongs_to :plant
+    # PlantParenthood#cap_affection:
+    # introduces a cap on the affection value at 11_000
+    def cap_affection()
+        binding.pry()
+    end
+end
+#+end_src
+- I then used 'bundle exec rake console' to develop the 'cap_affection' method, NOTE: I tried so hard to follow along but the instruction was just so bad, so I did my best:
+#+begin_src bash
+samuelbanya@Samuels-MBP ~/hub/Development/code/phase-3/phase-3-ar-more-mode
+ls-practice/lecture_kit $ bundle exec rake console
+[1] pry(main)> person = Person.find(2)
+D, [2022-09-14T21:00:07.135105 #23961] DEBUG -- :   Person Load (0.2ms)  SELECT  "people".* FROM "people" WHERE "people"."id" = ? LIMIT ?  [["id", 2], ["LIMIT", 1]]
+=> #<Person:0x00007fbfbd163b20
+ id: 2,
+ name: "Sylwia",
+ responsible: true,
+ age: 31>
+[2] pry(main)> plant = Plant.third()
+D, [2022-09-14T21:00:14.021126 #23961] DEBUG -- :   Plant Load (0.1ms)  SELECT  "plants".* FROM "plants" ORDER BY "plants"."id" ASC LIMIT ? OFFSET ?  [["LIMIT", 1], ["OFFSET", 2]]
+=> #<Plant:0x00007fbfbd4e2cb0
+ id: 3,
+ species: "Prayer plant",
+ color: "purple",
+ bought: 2019-08-15 00:00:00 UTC,
+ fussy: false>
+[3] pry(main)> person.water_plant(plant)
+D, [2022-09-14T21:00:16.794606 #23961] DEBUG -- :    (0.1ms)  begin transaction
+D, [2022-09-14T21:00:16.799036 #23961] DEBUG -- :   Watering Create (3.2ms)  INSERT INTO "waterings" ("plant_id", "person_id", "created_at", "updated_at") VALUES (?, ?, ?, ?)  [["plant_id", 3], ["person_id", 2], ["created_at", "2022-09-15 02:00:16.795003"], ["updated_at", "2022-09-15 02:00:16.795003"]]
+D, [2022-09-14T21:00:16.801618 #23961] DEBUG -- :    (2.0ms)  commit transaction
+D, [2022-09-14T21:00:16.816923 #23961] DEBUG -- :   PlantParenthood Load (0.1ms)  SELECT  "plant_parenthoods".* FROM "plant_parenthoods" WHERE "plant_parenthoods"."person_id" = ? AND "plant_parenthoods"."plant_id" = ? LIMIT ?  [["person_id", 2], ["plant_id", 3], ["LIMIT", 1]]
+
+From: /Users/samuelbanya/hub/Development/code/phase-3/phase-3-ar-more-models-practice/lecture_kit/app/models/person.rb:14 Person#water_plant:
+
+    10: def water_plant(plant)
+    11:     Watering.create(person_id: self.id, plant_id: plant.id)
+    12:     # binding.pry()
+    13:     pp = plant_parenthoods.find_by(plant: plant)
+s-practice/lecture_kit/app/models/person.rb:14 Person#water_plant:
+
+    10: def water_plant(plant)
+    11:     Watering.create(person_id: self.id, plant_id: plant.id)
+    12:     # binding.pry()
+    13:     pp = plant_parenthoods.find_by(plant: plant)
+ => 14:     binding.pry()
+    15:     if pp
+    16:         affection = pp.affection || 1
+    17:         affection += 1
+[1] pry(#<Person>)> self
+=> #<Person:0x00007fbfbd163b20
+ id: 2,
+ name: "Sylwia",
+ responsible: true,
+ age: 31>
+[2] pry(#<Person>)> self.affection = 3 if self.affection > 3~
+SyntaxError: unexpected '~', expecting end-of-input
+...tion = 3 if self.affection > 3~
+...                              ^
+[2] pry(#<Person>)> self.affection = 3 if self.affection > 3
+NoMethodError: undefined method `affection' for #<Person id: 2, name: "Sylwia", responsible: true, age: 31>
+from /Users/samuelbanya/.rvm/gems/ruby-2.7.4/gems/activemodel-5.2.4.3/lib/active_model/attribute_methods.rb:430:in `method_missing'
+[3] pry(#<Person>)> self.affection = 3 if self.affection > 3
+#+end_src
+- I then modified the contents of the 'lecture_kit/app/models/plant_parenthood.rb' file to be the following:
+#+begin_src ruby
+class PlantParenthood < ActiveRecord::Base
+    before_save :cap_affection
+
+    belongs_to :person
+    belongs_to :plant
+    # PlantParenthood#cap_affection:
+    # introduces a cap on the affection value at 11_000
+    def cap_affection()
+        # Check if affection is higher than 11,000
+        # If it is, change it
+        binding.pry()
+        self.affection = 11000 if self.affection > 11000
+    end
+end
+#+end_src
+*** Plant#number_of_days_since_the_last_watering: puts "I was watered NUMBER days ago"
+- I placed the following contents in the 'lecture_kit/app/models/plant.rb' file:
+#+begin_src ruby
+class Plant < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :people, through: :plant_parenthoods
+    has_many :plant_categories
+    has_many :categories, through: :plant_categories
+    has_many :waterings
+    has_many :waterers, through: :waterings
+
+    # Plant#number_of_days_since_the_last_watering:
+    # puts "I was watered NUMBER days ago"
+    def number_of_days_since_the_last_watering()
+        binding.pry()
+        puts "I was watered NUMBER days ago"
+    end
+end
+#+end_src
+- NOTE: I tried using 'bundle exec rake console' but it spazzed out, so here is just the contents of the final 'lecture_kit/app/models/plant.rb' file:
+#+begin_src ruby
+class Plant < ActiveRecord::Base
+    has_many :plant_parenthoods
+    has_many :people, through: :plant_parenthoods
+    has_many :plant_categories
+    has_many :categories, through: :plant_categories
+    has_many :waterings
+    has_many :waterers, through: :waterings
+
+    # Plant#number_of_days_since_the_last_watering:
+    # puts "I was watered NUMBER days ago"
+    def number_of_days_since_the_last_watering()
+        # binding.pry()
+        today = DateTime.now()
+        last_watering = self.waterings.last.created_at.to_datetime()
+        number = (today - last_watering).to_i
+        # My version:
+        # if number > 0
+            # return puts "I was watered #{number} days ago"
+        # end
+        # Instructor's crazy if statement logic workflow
+        # just so she can have a one liner that doesn't
+        # read that great:
+        return puts "I was watered #{number} days ago" if number > 0
+        puts "I was watered today"
+    end
+end
+#+end_src
